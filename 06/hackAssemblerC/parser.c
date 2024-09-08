@@ -6,6 +6,7 @@
 #include "parser.h"
 #include "instruction.h"
 #include "translator.h"
+#include "symTable.h"
 
 void parse_file (Parser *parser) {
     FILE *file = fopen(parser->file_name, "r");
@@ -16,23 +17,64 @@ void parse_file (Parser *parser) {
 
     char *output_file_name = strcat(strtok(parser->file_name, "."), ".hack");
     FILE *output_file = fopen(output_file_name, "w");
-    printf("output file name: %s \n", output_file_name);
     if (output_file == NULL) { 
         perror("Failed to create a hack file.");
         exit(1);
     }
 
-    size_t len = 40;
-    char *instr = NULL;
-    while (getline(&instr, &len, file) != -1) { 
-        strcpy(instr, trim(instr));
+    SymTable *t = new_symTable();
 
-        if (instr[0] == '/') {  // ignore comments
+    first_pass(file, t);
+    fseek(file, 0, SEEK_SET);
+    second_pass(file, t, output_file);
+
+    fclose(file);
+    fclose(output_file);
+}
+
+void first_pass (FILE *file, SymTable *t) { 
+    size_t len = 40;
+    char *line = NULL;
+    char instr[200];
+    int line_no = 0;
+    while (getline(&line, &len, file) != -1) { 
+        strcpy(instr, trim(line));
+
+        if (instr[0] == '/') continue;
+
+        if (instr[0] == '(') { 
+            char *label = split(&instr[1], ')');
+            if (get(t, label) == -1) { 
+                add_entry(t, label, line_no);
+            }
+
             continue;
         }
 
+        line_no++;
+    }
+}
+
+void second_pass (FILE *file, SymTable *t, FILE *output_file) { 
+    size_t len = 40;
+    char *line = NULL;
+    char instr[200];
+    while (getline(&line, &len, file) != -1) { 
+        strcpy(instr, trim(line));
+
+        if (instr[0] == '/' || instr[0] == '(') {  // ignore comments
+            continue;
+        }
+
+        if ((instr[0] == '@' && !isdigit(instr[1]))) { 
+            char *var = split(&instr[1], '\0');
+            if (get(t, var) == -1) { 
+                add_entry(t, var, -1);
+            }
+        }
+
         Instruction *instruction = parse_instruction(instr);
-        char *bin = translate_instruction(instruction);
+        char *bin = translate_instruction(instruction, t);
 
         int res = fputs(bin, output_file);
         if (res == EOF) { 
@@ -42,14 +84,12 @@ void parse_file (Parser *parser) {
         
         fputs("\n", output_file);
     }
-
-    fclose(output_file);
 }
 
 char *trim (char *s) { 
     while (*s == ' ') s++;
 
-    if (*s == '\n') return "/";
+    if (*s == '\n') return "/"; // so i can check for empty lines
 
     char *b = s + strlen(s);
     while (isspace(*--b));
@@ -74,8 +114,6 @@ Instruction *parse_ainstruction(char i[]) {
     }
     v[x - 1] = '\0';
 
-    int value = atoi(v);
-
     Instruction *inst_ptr = (Instruction *) malloc(sizeof(Instruction));
     if (inst_ptr == NULL) { 
         perror("malloc failed");
@@ -83,13 +121,18 @@ Instruction *parse_ainstruction(char i[]) {
     }
 
     inst_ptr->type = A;
-    inst_ptr->value.a_instruction.value = value;
+    strcpy(inst_ptr->value.a_instruction.value, v);
 
     return inst_ptr;
 }
 
 Instruction *parse_cinstruction(char in[]) { 
     Instruction *inst_ptr = (Instruction *) malloc(sizeof(Instruction));
+    if (inst_ptr == NULL) { 
+        perror("malloc failed");
+        exit(1);
+    }
+
     inst_ptr->type = C;
 
     char *cpos = strchr(in, '=');

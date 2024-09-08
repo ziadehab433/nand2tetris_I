@@ -2,7 +2,7 @@
 #define __INSTRUCTION__
 
 typedef struct Ainstruction { 
-    int value;
+    char value[20];
 }Ainstruction;
 
 typedef struct Cinstruction { 
