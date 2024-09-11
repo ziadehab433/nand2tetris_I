@@ -81,6 +81,9 @@ void second_pass (FILE *file, SymTable *t, FILE *output_file) {
             perror("Error while writing to the output file.");
             exit(1);
         }
+
+        free(instruction);
+        free(bin);
         
         fputs("\n", output_file);
     }
@@ -146,21 +149,25 @@ Instruction *parse_cinstruction(char in[]) {
             strcpy(inst_ptr->value.c_instruction.jmp, split(cpos + 1, '\0'));
         } else { 
             strcpy(inst_ptr->value.c_instruction.comp, split(cpos + 1, '\0'));
+            inst_ptr->value.c_instruction.jmp[0] = '\0';
         }
     } else if (jpos) { 
         strcpy(inst_ptr->value.c_instruction.comp, split(in, ';'));
         strcpy(inst_ptr->value.c_instruction.jmp, split(jpos + 1, '\0'));
+        inst_ptr->value.c_instruction.dest[0] = '\0';
     } else { 
         strcpy(inst_ptr->value.c_instruction.comp, in);
+        inst_ptr->value.c_instruction.jmp[0] = '\0';
+        inst_ptr->value.c_instruction.dest[0] = '\0';
     }
 
     return inst_ptr;
 }
 
 char *split (char *s, char d) { 
-    char *p = malloc(sizeof(char) * 4);
+    char *p = malloc(sizeof(char) * 50);
 
-    for (int i = 0; i < 20; i++) { 
+    for (int i = 0; i < 50; i++) { 
         if (s[i] == d) { 
             p[i] = '\0';
             break;

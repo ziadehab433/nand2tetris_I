@@ -78,6 +78,7 @@ char *translate_cinstruction (Instruction *i) {
         printf("failed to allocate mem in translate_cinstruction func \n");
         exit(1);
     }
+    res[0] = '\0';
 
     if (strstr(i->value.c_instruction.comp, "M")) { 
         strcat(res, "1111");
@@ -87,9 +88,17 @@ char *translate_cinstruction (Instruction *i) {
         strcat(res, to_binary(get_value(i->value.c_instruction.comp, comp, sizeof(comp)), 6));
     }
 
-    int v = get_value(i->value.c_instruction.dest, dest, sizeof(dest));
-    strcat(res, to_binary(v, 3));
-    strcat(res, to_binary(get_value(i->value.c_instruction.jmp, jump, sizeof(jump)), 3));
+    if (i->value.c_instruction.dest[0] != '\0') { 
+        strcat(res, to_binary(get_value(i->value.c_instruction.dest, dest, sizeof(dest)), 3));
+    } else { 
+        strcat(res, to_binary(0, 3));
+    }
+
+    if (i->value.c_instruction.jmp[0] != '\0') { 
+        strcat(res, to_binary(get_value(i->value.c_instruction.jmp, jump, sizeof(jump)), 3));
+    } else { 
+        strcat(res, to_binary(0, 3));
+    }
 
     return res;
 }
